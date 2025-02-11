@@ -1,18 +1,12 @@
 import re
-from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
+from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
-from utils import get_logger
-# import urllib.robotparser         not needed, for extra credit ?
-
-logger = get_logger("SCRAPER")
-visited_base_url = set()
-# visited_depth = {}
-visited_urls = {}
 
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
+
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -27,47 +21,53 @@ def extract_next_links(url, resp):
     links = []
 
     # checks if we have a valid status code (200 is good) or it has content
-    if resp.status_code != 200 or not resp.raw_response.content:
+    if not resp.raw_response or not (200 <= resp.status < 400):
         return links
 
-    try:
-        # parsing html content
-        soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
+    if 300 <= resp.status < 400:
+        redirected_url = resp.raw_response.url
+        if is_valid(redirected_url):
+            links.append(redirected_url)
 
-        # finds all the <a> tags which mean hyperlink and get their href
-        # example1: <a href="https://www.ics.uci.edu/contact-us"></a>
-        # example2: <a href="about-us"></a>
-        for link in soup.find_all('a', href=True):
-            href = link['href']  # extracts the link "https://www.ics.uci.edu/contact-us", "about-us"
-            complete_url = urljoin(url, href)  # joins it to the base url - "https://www.ics.uci.edu/about-us"
-            links.append(complete_url)
+    if 200 <= resp.status < 300:
+        try:
+            # parsing html content
+            soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
-    except Exception as e:
-        print(f"Error parsing {url}: {e}")
+            # finds all the <a> tags which mean hyperlink and get their href
+            # example1: <a href="https://www.ics.uci.edu/contact-us"></a>
+            # example2: <a href="about-us"></a>
+            for link in soup.find_all('a', href=True):
+                href = link['href']  # extracts the link "https://www.ics.uci.edu/contact-us", "about-us"
+                complete_url = urljoin(url, href)  # joins it to the base url - "https://www.ics.uci.edu/about-us"
+                if is_valid(complete_url):
+                    links.append(complete_url)
+
+        except Exception as e:
+            print(f"Error parsing {url}: {e}")
 
     return links
+
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
-        print("IS_VALID")
+        # urlparse() - parses content in 6 components: <scheme>://<netloc>/<path>;<params>?<query>#<fragment>
         parsed = urlparse(url)
-        logger.info(f"Checking URL: {url}")
-        logger.info(f"Parsed Hostname: {parsed.hostname}")
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in {"http", "https"}:
             return False
 
-        if not re.match(r".*(\.ics\.uci\.edu|\.cs\.uci\.edu|\.informatics\.uci\.edu|\.stat\.uci\.edu)$", parsed.hostname): ## domain needs to be one of these, allows subdomains
-
-        # if not re.match(r"^(?:.*\.)?(\.ics\.uci\.edu|\.cs\.uci\.edu|\.informatics\.uci\.edu|\.stat\.uci\.edu)$", parsed.hostname):
-            return False ## too restrictive, doesnt allow subdomains ^^
-
-        if any(keyword in parsed.query.lower() for keyword in ["ical=", "outlook-ical=", "tribe-bar-date=", "eventdate=", "calendar-view", "date="]):
+        # hostname is netloc in lowercase
+        if not re.match(
+                r".*(\.ics\.uci\.edu"
+                + "|\.cs\.uci\.edu"
+                + "|\.informatics\.uci\.edu"
+                + "|\.stat\.uci\.edu)$", parsed.hostname):
             return False
 
-        return not re.match( ## removes not wanted file extensions
+        return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -76,6 +76,20 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+
     except TypeError:
         print("TypeError for ", parsed)
         raise
+
+
+def check_status(url, resp):
+    if not resp.raw_response or not (200 <= resp.status < 400):
+        return
+
+    if 300 <= resp.status < 400:
+        redirected_url = resp.raw_response.url
+        return redirected_url
+
+    if 200 <= resp.status < 300:
+        return url
+
