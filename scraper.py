@@ -22,18 +22,6 @@ def scraper(url, resp):
         return []
     visited_base_url.add(url)
 
-## was previously a checker for depth of a subdomain, removed as i think were supposed to crawl those pages anyways
-    # parsed = urlparse(url)
-    # path = parsed.path.lower()
-    # domain = parsed.hostname.lower()
-
-    # if (domain, path) in visited_urls and visited_urls[(domain, path)] >= 5:
-    #     logger.info(f"skkipping bc of the path exceded: {url}")
-    #     return []
-
-    # if (domain, path) not in visited_urls:
-    #     visited_urls[(domain, path)] = 0
-    # visited_urls[(domain, path)] += 1
 
     if resp.status == 200: #TODO: NEED TO ALLOW REDIRECTS! 200-399
         try: 
@@ -114,7 +102,35 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+    links = []
+
+    # checks if we have a valid status code (200 is good) or it has content
+    if not resp.raw_response or not (200 <= resp.status < 400):
+        return links
+
+    if 300 <= resp.status < 400:
+        redirected_url = resp.raw_response.url
+        if is_valid(redirected_url):
+            links.append(redirected_url)
+
+    if 200 <= resp.status < 300:
+        try:
+            # parsing html content
+            soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
+
+            # finds all the <a> tags which mean hyperlink and get their href
+            # example1: <a href="https://www.ics.uci.edu/contact-us"></a>
+            # example2: <a href="about-us"></a>
+            for link in soup.find_all('a', href=True):
+                href = link['href']  # extracts the link "https://www.ics.uci.edu/contact-us", "about-us"
+                complete_url = urljoin(url, href)  # joins it to the base url - "https://www.ics.uci.edu/about-us"
+                if is_valid(complete_url):
+                    links.append(complete_url)
+
+        except Exception as e:
+            print(f"Error parsing {url}: {e}")
+
+    return links
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
