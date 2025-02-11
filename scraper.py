@@ -25,6 +25,7 @@ def scraper(url, resp):
     #     visited_depth[base_url] = 0
 
     if url in visited_base_url:
+        logger.info(f"Already visited: {url}")
     # # if base_url in visited_base_url:
         return []
     visited_base_url.add(url)
@@ -51,14 +52,16 @@ def scraper(url, resp):
             content = resp.raw_response.content ## needs to be the links only
             if not content.strip():
                 # print("NO CONTENT")
+                logger.info(f"No content: {url}")
                 return []
             
             content_soup = BeautifulSoup(content, 'html.parser')
 
             ## stops the scraper scraping pages of little content
-            doc_words = (content_soup.get_text()).split() ## makes sure that the page is useful
+            doc_words = (content_soup.get_text(separator=" ")).split() ## makes sure that the page is useful
             if len(doc_words) < 100: ## need more than 50 words in body for it to count
                 # print("SMALL PAGE")
+                logger.info(f"Not enough text content: {url}")
                 return []
             
             text_len = 0
@@ -83,7 +86,7 @@ def scraper(url, resp):
 
             for anchor in content_soup.find_all('a', href=True):
                 link = anchor['href']
-                logger.info(f"CHECKING URL: {link}")
+                # logger.info(f"CHECKING URL: {link}")
 
                 ## had some issues with joining relative links compounding
                 full_url = urljoin(url, link)
@@ -102,7 +105,7 @@ def scraper(url, resp):
                 logger.info(f"FULL URL: {c_url}")
                 clean_url, frag = urldefrag(c_url) ## removes fragments (from canvas)
                 
-                logger.info(f"DEFRAGGED URL: {clean_url}")
+                # logger.info(f"DEFRAGGED URL: {clean_url}")
                 links.append(clean_url)
 
         except Exception as e:
@@ -132,10 +135,10 @@ def is_valid(url):
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
-        print("IS_VALID")
+        # print("IS_VALID")
         parsed = urlparse(url)
-        logger.info(f"Checking URL: {url}")
-        logger.info(f"Parsed Hostname: {parsed.hostname}")
+        # logger.info(f"Checking URL: {url}")
+        # logger.info(f"Parsed Hostname: {parsed.hostname}")
         if parsed.scheme not in set(["http", "https"]):
             return False
 
@@ -143,12 +146,15 @@ def is_valid(url):
 
         # if not re.match(r"^(?:.*\.)?(\.ics\.uci\.edu|\.cs\.uci\.edu|\.informatics\.uci\.edu|\.stat\.uci\.edu)$", parsed.hostname):
             return False ## too restrictive, doesnt allow subdomains ^^
-
+        if re.search(r"\b\d{4}-\d{2}-\d{2}\b", parsed.path):
+            logger.info(f"Date in url: {url}")
+            return False
+            
         if any(keyword in parsed.query.lower() for keyword in ["ical=", "outlook-ical=", "tribe-bar-date=", "eventdate=", "calendar-view", "date="]):
             return False
 
         return not re.match( ## removes not wanted file extensions
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|img"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
