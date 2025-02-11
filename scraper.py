@@ -80,16 +80,3 @@ def is_valid(url):
     except TypeError:
         print("TypeError for ", parsed)
         raise
-
-
-def check_status(url, resp):
-    if not resp.raw_response or not (200 <= resp.status < 400):
-        return
-
-    if 300 <= resp.status < 400:
-        redirected_url = resp.raw_response.url
-        return redirected_url
-
-    if 200 <= resp.status < 300:
-        return url
-
