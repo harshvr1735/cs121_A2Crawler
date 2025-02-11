@@ -2,6 +2,11 @@ import re
 from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+
 # import urllib.robotparser         not needed, for extra credit ?
 
 logger = get_logger("SCRAPER")
@@ -103,6 +108,32 @@ def scraper(url, resp):
     return valid
     # links = extract_next_links(url, resp)
     # return [link for link in links if is_valid(link)]
+
+
+def tokenizer(doc_words):
+
+    stopwords_set = set(stopwords.words('english'))
+    token_frequencies = {}
+    token_frequencies_no_stop_words = {}
+
+    url_words = 0
+    url_words_no_stop_words = 0
+    
+    for line in doc_words:
+        tokenized_line = word_tokenize(line)
+        for token in tokenized_line:
+            url_words += 1
+            if token not in token_frequencies: 
+                token_frequencies[token] = 1
+            else:
+                token_frequencies[token] += 1
+            if token not in stopwords_set:
+                url_words_no_stop_words += 1
+                if token not in token_frequencies_no_stop_words: 
+                    token_frequencies_no_stop_words[token] = 1
+                else:
+                    token_frequencies_no_stop_words[token] += 1
+
 
 def extract_next_links(url, resp):
     # Implementation required.
