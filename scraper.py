@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
+
 # import urllib.robotparser         not needed, for extra credit ?
 
 logger = get_logger("SCRAPER")
@@ -9,10 +10,11 @@ visited_base_url = set()
 # visited_depth = {}
 visited_urls = {}
 
+
 ## wics.ics.uci.edu/events counts as a trap possibly? should blacklist it
 ## wiki.ics.uci.edu has a lot of pages where theyre just wiki revisions, but its possible to escape them
 
-#TODO: break everything into different helper functions
+# TODO: break everything into different helper functions
 
 def scraper(url, resp):
     links = []
@@ -22,25 +24,24 @@ def scraper(url, resp):
         return []
     visited_base_url.add(url)
 
-
-    if resp.status == 200: #TODO: NEED TO ALLOW REDIRECTS! 200-399
-        try: 
+    if resp.status == 200:  # TODO: NEED TO ALLOW REDIRECTS! 200-399
+        try:
             content = resp.raw_response.content
             if not content.strip():
                 logger.info(f"No content: {url}")
                 return []
-            
+
             content_soup = BeautifulSoup(content, 'html.parser')
 
-## Stops the scraper scraping pages of little content (< 100 words)
+            ## Stops the scraper scraping pages of little content (< 100 words)
             doc_words = (content_soup.get_text(separator=" ")).split()
             if len(doc_words) < 100:
                 logger.info(f"Not enough text content: {url}")
                 return []
 
-## Finds ratio of HTML to document text, 
-## works as wanted, but removed as it filters out starting webpages (stats.uci.edu, ics.uci.edu, etc)
-## Could try decreasing threshold?
+            ## Finds ratio of HTML to document text,
+            ## works as wanted, but removed as it filters out starting webpages (stats.uci.edu, ics.uci.edu, etc)
+            ## Could try decreasing threshold?
             # text_len = 0
             # for word in doc_words:
             #     text_len += len(word)
@@ -55,7 +56,7 @@ def scraper(url, resp):
             #     print("TOO MUCH HTML")
             #     return []
 
-### Scraper does not scrape if page contains no-follow meta tags
+            ### Scraper does not scrape if page contains no-follow meta tags
             robot = content_soup.find('meta', attrs={'name': 'robots'})
             if robot and 'nofollow' in robot.get('content', '').lower():
                 logger.info(f"Skipping bc of nofollow meta tag: {url}")
@@ -64,8 +65,8 @@ def scraper(url, resp):
             for anchor in content_soup.find_all('a', href=True):
                 link = anchor['href']
 
-## Had some issues with joining relative links compounding
-## Removes copies of segments that might be repeated
+                ## Had some issues with joining relative links compounding
+                ## Removes copies of segments that might be repeated
                 full_url = urljoin(url, link)
                 parsed_url = urlparse(full_url)
 
@@ -76,10 +77,10 @@ def scraper(url, resp):
 
                 normal_path = '/'.join(path_segments)
                 c_url = urlunparse(parsed_url._replace(path=normal_path))
-                
+
                 logger.info(f"FULL URL: {c_url}")
-                clean_url, frag = urldefrag(c_url) ## Removes fragments (from canvas)
-                
+                clean_url, frag = urldefrag(c_url)  ## Removes fragments (from canvas)
+
                 links.append(clean_url)
 
         except Exception as e:
@@ -91,6 +92,7 @@ def scraper(url, resp):
     return valid
     # links = extract_next_links(url, resp)
     # return [link for link in links if is_valid(link)]
+
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -132,6 +134,7 @@ def extract_next_links(url, resp):
 
     return links
 
+
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
@@ -141,18 +144,22 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
 
-## Domain needs to be one of these, allows subdomains
-        if not re.match(r".*(\.ics\.uci\.edu|\.cs\.uci\.edu|\.informatics\.uci\.edu|\.stat\.uci\.edu)$", parsed.hostname): ## domain needs to be one of these, allows subdomains
+        # Domain needs to be one of these, allows subdomains
+        if not re.match(r".*(\.ics\.uci\.edu|\.cs\.uci\.edu|\.informatics\.uci\.edu|\.stat\.uci\.edu)$",
+                        parsed.hostname):  # domain needs to be one of these, allows subdomains
             return False
-## Domain can't have any "2000-01-03" etc
+
+        # Domain can't have any "2000-01-03" etc
         if re.search(r"\b\d{4}-\d{2}-\d{2}\b", parsed.path):
             logger.info(f"Date in url: {url}")
             return False
-## Removes unwanted tags in the URL, such as calendars or excessive dates
-        if any(keyword in parsed.query.lower() for keyword in ["ical=", "outlook-ical=", "tribe-bar-date=", "eventdate=", "calendar-view", "date="]):
+
+        # Removes unwanted tags in the URL, such as calendars or excessive dates
+        if any(keyword in parsed.query.lower() for keyword in
+               ["ical=", "outlook-ical=", "tribe-bar-date=", "eventdate=", "calendar-view", "date="]):
             return False
 
-## Returns the URL if it doesn't end with any of these extension tags
+        # Returns the URL if it doesn't end with any of these extension tags
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico|img"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -163,5 +170,5 @@ def is_valid(url):
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
     except TypeError:
-        print ("TypeError for ", parsed)
+        print("TypeError for ", parsed)
         raise
