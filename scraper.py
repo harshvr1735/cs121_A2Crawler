@@ -27,7 +27,7 @@ def extract_next_links(url, resp):
     links = []
 
     # checks if we have a valid status code (200 is good) or it has content
-    if resp.status_code != 200 or not resp.raw_response:
+    if resp.status_code != 200 or not resp.raw_response.content:
         return links
 
     try:
