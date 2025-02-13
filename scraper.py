@@ -2,17 +2,25 @@ import re
 from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
+import urllib
+import time
 # import urllib.robotparser         not needed, for extra credit ?
 
 logger = get_logger("SCRAPER")
 visited_base_url = set()
 # visited_depth = {}
-visited_urls = {}
+# visited_urls = {}
 
+all_webpage_count = "all_webpage_count.txt"
+all_webpage_count_no_stopwords = "all_webpage_count_no_stopwords.txt"
+stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"]
+traps = ["Nanda", "grape.ics.uci.edu/wiki/public/timeline?","version=","action=login","action=download","github.com","ics.uci.edu/events", "isg.ics.uci.edu/events/tag/talks/day", "share=facebook", "share=twitter", ".pdf", ".ps"]
 ## wics.ics.uci.edu/events counts as a trap possibly? should blacklist it
-## wiki.ics.uci.edu has a lot of pages where theyre just wiki revisions, but its possible to escape them
+## wiki.ics.uci.edu has a lot of pages where theyre just wiki revisions, but its possible to escape them ics.uci.edu/events
 
-#TODO: break everything into different helper functions
+#TODO: break everything into different helper functions, 
+# a tokenizer, make a file that collects most words, a file that contains the longest text webpage, etc 
+# list of links from a subdomain and all the subdomains
 
 def scraper(url, resp):
     links = []
@@ -21,7 +29,8 @@ def scraper(url, resp):
         logger.info(f"Already visited: {url}")
         return []
     visited_base_url.add(url)
-
+    if "ssh://git@github.com" in url:
+        return []
 ## was previously a checker for depth of a subdomain, removed as i think were supposed to crawl those pages anyways
     # parsed = urlparse(url)
     # path = parsed.path.lower()
@@ -41,6 +50,12 @@ def scraper(url, resp):
             if not content.strip():
                 logger.info(f"No content: {url}")
                 return []
+
+            # docu = urllib.urlopen(url) <----- does not allow use of .request, and thats the module that urlopen is in
+            # doc_bytes = d.info()['Content-Length']
+            # if doc_bytes / 1000000 > 30: ## as said 30MB is the max that google will scrape and files over that size will be ignored
+            #     logger.info(f"Too big of a file: {url}")
+            #     return []
             
             content_soup = BeautifulSoup(content, 'html.parser')
 
@@ -49,6 +64,7 @@ def scraper(url, resp):
             if len(doc_words) < 100:
                 logger.info(f"Not enough text content: {url}")
                 return []
+            tokenizer(url, doc_words)
 
 ## Finds ratio of HTML to document text, 
 ## works as wanted, but removed as it filters out starting webpages (stats.uci.edu, ics.uci.edu, etc)
@@ -100,9 +116,49 @@ def scraper(url, resp):
     links = list(set(links))
     valid = [link for link in links if is_valid(link)]
     logger.info(f"{len(valid)} valid links from {url}: {valid}")
+    # time.sleep(5)
     return valid
     # links = extract_next_links(url, resp)
     # return [link for link in links if is_valid(link)]
+
+def tokenizer(url, doc_words):
+    token_frequencies = {}
+    token_frequencies_no_stop_words = {}
+
+    url_words = 0
+    url_words_no_stop_words = 0
+    # token = ""
+
+    for word in doc_words:
+        # for char in word:
+        #     pass 
+        #     #TODO: COMPLETE TOKENIZER IMPLEMENTATION
+        #     ## does this count can't as can't or can t theyre so vague on ed
+
+        url_words += 1
+        if word not in stopwords:
+            url_words_no_stop_words += 1
+        if word not in token_frequencies:
+            if word in stopwords:
+                token_frequencies_no_stop_words[word] = 1
+            token_frequencies[word] = 1
+        else:
+            if word in stopwords:
+                token_frequencies_no_stop_words[word] += 1
+            token_frequencies[word] += 1
+
+    # token_frequencies = dict(sorted(token_frequencies.items(), key=lambda item: item[1]))
+    # token_frequencies_no_stop_words = dict(sorted(token_frequencies_no_stop_words.items(), key=lambda item: item[1]))
+
+    with(open(all_webpage_count, "a")) as file:
+        text_to_write = f"{url},{url_words}\n"        
+        file.write(text_to_write)
+
+    with(open(all_webpage_count_no_stopwords, "a")) as file:
+        text_to_write = f"{url},{url_words_no_stop_words}\n"
+        file.write(text_to_write)
+    ## probably append to a file to keep track and then convert to a csv for our reports? 
+    ## and then sort it there bc thats easy implementation
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -125,20 +181,31 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
 
+        if not parsed.hostname:
+            logger.info(f"No hostname: {url}")
+            return False
+
 ## Domain needs to be one of these, allows subdomains
-        if not re.match(r".*(\.ics\.uci\.edu|\.cs\.uci\.edu|\.informatics\.uci\.edu|\.stat\.uci\.edu)$", parsed.hostname): ## domain needs to be one of these, allows subdomains
+        if not re.match(r".*(www\.)?(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu)", parsed.hostname): ## domain needs to be one of these, allows subdomains
+            logger.info(f"Not in wanted domain: {url} {parsed.hostname}")
             return False
 ## Domain can't have any "2000-01-03" etc
         if re.search(r"\b\d{4}-\d{2}-\d{2}\b", parsed.path):
             logger.info(f"Date in url: {url}")
             return False
 ## Removes unwanted tags in the URL, such as calendars or excessive dates
-        if any(keyword in parsed.query.lower() for keyword in ["ical=", "outlook-ical=", "tribe-bar-date=", "eventdate=", "calendar-view", "date="]):
+        if any(keyword in parsed.query.lower() for keyword in ["timeline", "ical=", "outlook-ical=", "tribe-bar-date=", "eventdate=", "calendar-view", "date="]):
+            logger.info(f"Calendar in url: {url}")
             return False
+        
+        for t in traps:
+            if t in parsed.geturl():
+                logger.info(f"Found a trap in: {url}")
+                return False
 
 ## Returns the URL if it doesn't end with any of these extension tags
         return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico|img"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|img|sql|ipynb|war|bam"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
