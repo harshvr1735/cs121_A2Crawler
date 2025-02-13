@@ -17,65 +17,8 @@ visited_urls = {}
 # TODO: break everything into different helper functions
 
 def scraper(url, resp):
-    links = []
-
-    if url in visited_base_url:
-        logger.info(f"Already visited: {url}")
-        return []
-    visited_base_url.add(url)
-
-    if resp.status == 200:  # TODO: NEED TO ALLOW REDIRECTS! 200-399
-        try:
-            content = resp.raw_response.content
-            if not content.strip():
-                logger.info(f"No content: {url}")
-                return []
-
-            content_soup = BeautifulSoup(content, 'html.parser')
-
-            ## Stops the scraper scraping pages of little content (< 100 words)
-            doc_words = (content_soup.get_text(separator=" ")).split()
-            if len(doc_words) < 100:
-                logger.info(f"Not enough text content: {url}")
-                return []
-
-
-            ### Scraper does not scrape if page contains no-follow meta tags
-            robot = content_soup.find('meta', attrs={'name': 'robots'})
-            if robot and 'nofollow' in robot.get('content', '').lower():
-                logger.info(f"Skipping bc of nofollow meta tag: {url}")
-                return []
-
-            for anchor in content_soup.find_all('a', href=True):
-                link = anchor['href']
-
-                ## Had some issues with joining relative links compounding
-                ## Removes copies of segments that might be repeated
-                full_url = urljoin(url, link)
-                parsed_url = urlparse(full_url)
-
-                path_segments = []
-                for seg in parsed_url.path.split('/'):
-                    if seg and (not path_segments or seg != path_segments[-1]):
-                        path_segments.append(seg)
-
-                normal_path = '/'.join(path_segments)
-                c_url = urlunparse(parsed_url._replace(path=normal_path))
-
-                logger.info(f"FULL URL: {c_url}")
-                clean_url, frag = urldefrag(c_url)  ## Removes fragments (from canvas)
-
-                links.append(clean_url)
-
-        except Exception as e:
-            print(f"Error parsing {url}: {e}")
-
-    links = list(set(links))
-    valid = [link for link in links if is_valid(link)]
-    logger.info(f"{len(valid)} valid links from {url}: {valid}")
-    return valid
-    # links = extract_next_links(url, resp)
-    # return [link for link in links if is_valid(link)]
+    links = extract_next_links(url, resp)
+    return [link for link in links if is_valid(link)]
 
 
 def extract_next_links(url, resp):
