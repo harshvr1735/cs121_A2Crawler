@@ -3,6 +3,7 @@ from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
 import nltk
+nltk.download('punkt')
 import csv
 from nltk.tokenize import word_tokenize
 
