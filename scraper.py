@@ -39,22 +39,6 @@ def scraper(url, resp):
                 logger.info(f"Not enough text content: {url}")
                 return []
 
-            ## Finds ratio of HTML to document text,
-            ## works as wanted, but removed as it filters out starting webpages (stats.uci.edu, ics.uci.edu, etc)
-            ## Could try decreasing threshold?
-            # text_len = 0
-            # for word in doc_words:
-            #     text_len += len(word)
-            # doc_len = len(str(content_soup))
-
-            # if (doc_len > 0):
-            #     ratio = text_len / doc_len
-            # else:
-            #     ratio = 0
-
-            # if ratio < 0.1:
-            #     print("TOO MUCH HTML")
-            #     return []
 
             ### Scraper does not scrape if page contains no-follow meta tags
             robot = content_soup.find('meta', attrs={'name': 'robots'})
@@ -119,6 +103,9 @@ def extract_next_links(url, resp):
             # parsing html content
             soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
 
+            if not has_sufficient_content(soup):
+                return links
+
             # finds all the <a> tags which mean hyperlink and get their href
             # example1: <a href="https://www.ics.uci.edu/contact-us"></a>
             # example2: <a href="about-us"></a>
@@ -132,6 +119,32 @@ def extract_next_links(url, resp):
             print(f"Error parsing {url}: {e}")
 
     return links
+
+
+def is_valid_response(resp) -> int:
+    """
+    Checks if the response is valid (status 200-399 and contains content).
+    returns an int 2 - 200, 3 - 300, 4 - 400
+    """
+    if not resp.raw_response:
+        return 4
+
+    if 200 <= resp.status < 400:
+        if resp.status >= 300:  # Handle redirects
+            return 3
+        if bool(resp.raw_response.content.strip()):  # Ensure content is not empty
+            return 2
+    return 4
+
+
+def has_sufficient_content(soup):
+    """
+    Ensures the page has enough textual content to be worth crawling.
+    """
+    doc_words = (soup.get_text(separator=" ")).split()
+    if len(doc_words) < 100:
+        return False
+    return True
 
 
 def is_valid(url):
@@ -171,19 +184,3 @@ def is_valid(url):
     except TypeError:
         print("TypeError for ", parsed)
         raise
-
-
-def is_valid_response(resp) -> int:
-    """
-    Checks if the response is valid (status 200-399 and contains content).
-    returns an int 2 - 200, 3 - 300, 4 - 400
-    """
-    if not resp.raw_response:
-        return 4
-
-    if 200 <= resp.status < 400:
-        if resp.status >= 300:  # Handle redirects
-            return 3
-        if bool(resp.raw_response.content.strip()):  # Ensure content is not empty
-            return 2
-    return 4
