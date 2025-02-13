@@ -138,6 +138,10 @@ def tokenizer(url, doc_words):
         text_to_write = f"{url},{url_words}\n"        
         file.write(text_to_write)
 
+    all_webpage_count_no_stopwords = "all_webpage_count_no_stopwords.txt"
+    with(open(all_webpage_count_no_stopwords, "a")) as file:
+        text_to_write = f"{url},{url_words_no_stop_words}\n"
+        file.write(text_to_write)
 
 
 
