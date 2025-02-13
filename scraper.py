@@ -208,8 +208,8 @@ def is_valid(url):
             logger.info(f"No hostname: {url}")
             return False
 
-## Domain needs to be one of these, allows subdomains
-        if not re.match(r".*(www\.)?(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu)", parsed.hostname): ## domain needs to be one of these, allows subdomains
+## Domain needs to be one of these, allows subdomains 
+        if not re.match(r"(.*\.)?(ics|cs|informatics|stat)\.uci\.edu", parsed.hostname): ## domain needs to be one of these, allows subdomains
             logger.info(f"Not in wanted domain: {url} {parsed.hostname}")
             return False
 ## Domain can't have any "2000-01-03" etc
