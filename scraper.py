@@ -114,6 +114,7 @@ def extract_next_links(url, resp):
         except Exception as e:
             print(f"Error parsing {url}: {e}")
 
+    links = list(set(links))  # removes duplicates
     return links
 
 
