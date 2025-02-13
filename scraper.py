@@ -109,14 +109,7 @@ def extract_next_links(url, resp):
             if has_nofollow_meta(soup):
                 return links
 
-            # finds all the <a> tags which mean hyperlink and get their href
-            # example1: <a href="https://www.ics.uci.edu/contact-us"></a>
-            # example2: <a href="about-us"></a>
-            for link in soup.find_all('a', href=True):
-                href = link['href']  # extracts the link "https://www.ics.uci.edu/contact-us", "about-us"
-                complete_url = urljoin(url, href)  # joins it to the base url - "https://www.ics.uci.edu/about-us"
-                if is_valid(complete_url):
-                    links.append(complete_url)
+            links = extract_hyperlinks(url, soup)
 
         except Exception as e:
             print(f"Error parsing {url}: {e}")
@@ -158,6 +151,37 @@ def has_nofollow_meta(soup):
     if robot and 'nofollow' in robot.get('content', '').lower():
         return robot and 'nofollow' in robot.get('content', '').lower()
 
+
+def extract_hyperlinks(url, soup):
+    """
+    Extracts hyperlinks from the parsed HTML content
+    """
+    links = []
+    # finds all the <a> tags which mean hyperlink and get their href
+    # example1: <a href="https://www.ics.uci.edu/contact-us"></a>
+    # example2: <a href="about-us"></a>
+    for link in soup.find_all('a', href=True):
+        raw_link = link['href']  # extracts the link "https://www.ics.uci.edu/contact-us", "about-us"
+        complete_url = urljoin(url, raw_link)  # joins it to the base url - "https://www.ics.uci.edu/about-us"
+        clean_url, _ = urldefrag(complete_url)  # Remove fragments
+        normal_url = normalize_url(clean_url)
+        if normal_url:
+            links.append(normal_url)
+    return links
+
+
+def normalize_url(url):
+    """
+    Normalizes URLs to remove redundant parts
+    """
+    parsed_url = urlparse(url)
+    path_segments = []
+    for seg in parsed_url.path.split('/'):
+        if seg and (not path_segments or seg != path_segments[-1]):
+            path_segments.append(seg)
+
+    normal_path = '/'.join(path_segments)
+    return urlunparse(parsed_url._replace(path=normal_path))
 
 
 def is_valid(url):
