@@ -25,9 +25,32 @@ traps = ["Nanda", "grape.ics.uci.edu/wiki/public/timeline?","version=","action=l
 def scraper(url, resp):
     links = []
 
-    if url in visited_base_url:
-        logger.info(f"Already visited: {url}")
+    # if url in visited_base_url:
+    #     logger.info(f"Already visited: {url}")
+    #     return []
+
+    try:
+        visited_urls = set()
+        base_url, frag = urldefrag(url)
+
+        try:
+            with open("all_webpage_count.txt", "r") as file:
+                visited_urls = {line.split(',')[0].strip() for line in file}
+
+        except Exception as e:
+            logger.info(f"{e}: {url}")
+
+        # print(visited_urls)
+        # print(base_url)
+        if base_url in visited_urls:
+            logger.info("Already visited: {url}")
+            return []
+
+    except Exception as e:
+        logger.error(f"{e}: {url}")
         return []
+
+
     visited_base_url.add(url)
     if "ssh://git@github.com" in url:
         return []
