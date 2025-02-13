@@ -106,6 +106,9 @@ def extract_next_links(url, resp):
             if not has_sufficient_content(soup):
                 return links
 
+            if has_nofollow_meta(soup):
+                return links
+
             # finds all the <a> tags which mean hyperlink and get their href
             # example1: <a href="https://www.ics.uci.edu/contact-us"></a>
             # example2: <a href="about-us"></a>
@@ -145,6 +148,16 @@ def has_sufficient_content(soup):
     if len(doc_words) < 100:
         return False
     return True
+
+
+def has_nofollow_meta(soup):
+    """
+    Checks if the page has a nofollow meta tag
+    """
+    robot = soup.find('meta', attrs={'name': 'robots'})
+    if robot and 'nofollow' in robot.get('content', '').lower():
+        return robot and 'nofollow' in robot.get('content', '').lower()
+
 
 
 def is_valid(url):
