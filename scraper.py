@@ -106,16 +106,15 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     links = []
 
-    # checks if we have a valid status code (200 is good) or it has content
-    if not resp.raw_response or not (200 <= resp.status < 400):
-        return links
+    num = is_valid_response(resp)
 
-    if 300 <= resp.status < 400:
+    if num == 4:
+        return links
+    elif num == 3:
         redirected_url = resp.raw_response.url
         if is_valid(redirected_url):
             links.append(redirected_url)
-
-    if 200 <= resp.status < 300:
+    elif num == 2:
         try:
             # parsing html content
             soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
@@ -172,3 +171,19 @@ def is_valid(url):
     except TypeError:
         print("TypeError for ", parsed)
         raise
+
+
+def is_valid_response(resp) -> int:
+    """
+    Checks if the response is valid (status 200-399 and contains content).
+    returns an int 2 - 200, 3 - 300, 4 - 400
+    """
+    if not resp.raw_response:
+        return 4
+
+    if 200 <= resp.status < 400:
+        if resp.status >= 300:  # Handle redirects
+            return 3
+        if bool(resp.raw_response.content.strip()):  # Ensure content is not empty
+            return 2
+    return 4
