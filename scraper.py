@@ -133,6 +133,11 @@ def tokenizer(url, doc_words):
                 else:
                     token_frequencies_no_stop_words[token] += 1
 
+    all_webpage_count = "all_webpage_count.txt"
+    with(open(all_webpage_count, "a")) as file:
+        text_to_write = f"{url},{url_words}\n"        
+        file.write(text_to_write)
+
 
 
 
