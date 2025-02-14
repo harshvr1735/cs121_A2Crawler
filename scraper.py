@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 
 token_shelve = "token_shelve"
 logger = get_logger("SCRAPER")
-traps = ["archive.ics.uci.edu","Nanda", "grape.ics.uci.edu/wiki/public/timeline?","version=","action=login","action=download","github.com","ics.uci.edu/events", "isg.ics.uci.edu/events/tag/talks/day", "share=facebook", "share=twitter", ".pdf", ".ps"]
+traps = ["/pdf/","archive.ics.uci.edu","Nanda", "grape.ics.uci.edu/wiki/public/timeline?","version=","action=login","action=download","github.com","ics.uci.edu/events", "isg.ics.uci.edu/events/tag/talks/day", "share=facebook", "share=twitter", ".pdf", ".ps"]
 
 def scraper(url, resp):
     links = []
@@ -180,7 +180,7 @@ def is_valid(url):
 
 ## Returns the URL if it doesn't end with any of these extension tags
         return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico|img|sql|ipynb|war|bam|mpg|ppsx"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|img|sql|ipynb|war|bam|mpg|ppsx|apk|pps"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
