@@ -26,37 +26,20 @@ def scraper(url, resp):
                 for line in file:
                     v_url = line.split(',')[0].strip()
                     visited_urls.add(v_url.replace("%7E", "~"))
-                # visited_urls = {line.split(',')[0].strip() for line in file}
 
         except Exception as e:
             logger.info(f"{e}: {url}")
 
         if base_url in visited_urls:
             logger.info(f"Already visited: {url}")
-            return []
-        # else:
-            
+            return []            
 
     except Exception as e:
         logger.error(f"Error checking visited URLs: {e}")
         return []
 
-
-    # visited_urls.add(url)
     if "ssh://git@github.com" in url:
         return []
-## was previously a checker for depth of a subdomain, removed as i think were supposed to crawl those pages anyways
-    # parsed = urlparse(url)
-    # path = parsed.path.lower()
-    # domain = parsed.hostname.lower()
-
-    # if (domain, path) in visited_urls and visited_urls[(domain, path)] >= 5:
-    #     logger.info(f"skkipping bc of the path exceded: {url}")
-    #     return []
-
-    # if (domain, path) not in visited_urls:
-    #     visited_urls[(domain, path)] = 0
-    # visited_urls[(domain, path)] += 1
 
     if resp.status == 200: #TODO: NEED TO ALLOW REDIRECTS! 200-399
         try: 
@@ -108,44 +91,37 @@ def scraper(url, resp):
     links = list(set(links))
     valid = [link for link in links if is_valid(link)]
     logger.info(f"{len(valid)} valid links from {url}: {valid}")
-    # time.sleep(5)
     return valid
     # links = extract_next_links(url, resp)
     # return [link for link in links if is_valid(link)]
 
 def tokenizer(url, doc_words):
     stopwords_set = set(["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"])
-    # token_frequencies = {}
-    # token_frequencies_no_stop_words = {}
 
     url_words = 0
     url_words_no_stop_words = 0
     
-    with shelve.open("token_shelve", writeback=True) as ts:
-        token_frequencies = ts.get("token_frequencies", {})
-        token_frequencies_no_stop_words = ts.get("token_frequencies_no_stop_words", {})
+    with shelve.open("token_shelve", writeback=False) as ts:
+        try:
+            token_frequencies = ts.get("token_frequencies", {})
+            token_frequencies_no_stop_words = ts.get("token_frequencies_no_stop_words", {})
 
-        for token in doc_words:
-            token = token.lower()
-            url_words += 1
+            for token in doc_words:
+                token = token.lower()
+                url_words += 1
 
-            token_frequencies[token] = token_frequencies.get(token, 0) + 1
-            # if token not in token_frequencies: 
-            #     token_frequencies[token] = 1
-            # else:
-            #     token_frequencies[token] += 1
+                token_frequencies[token] = token_frequencies.get(token, 0) + 1
 
-            if token not in stopwords_set:
-                url_words_no_stop_words += 1
-                token_frequencies_no_stop_words[token] = token_frequencies_no_stop_words.get(token, 0) + 1
+                if token not in stopwords_set:
+                    url_words_no_stop_words += 1
+                    token_frequencies_no_stop_words[token] = token_frequencies_no_stop_words.get(token, 0) + 1
 
-            #     if token not in token_frequencies_no_stop_words: 
-            #         token_frequencies_no_stop_words[token] = 1
-            #     else:
-            #         token_frequencies_no_stop_words[token] += 1
-
-        ts["token_frequencies"] = token_frequencies
-        ts["token_frequencies_no_stop_words"] = token_frequencies_no_stop_words
+            ts["token_frequencies"] = token_frequencies
+            ts["token_frequencies_no_stop_words"] = token_frequencies_no_stop_words
+        except KeyboardInterrupt:
+            print(f"Shuting down program through KeyboardInterrupt: {url}, {e}")
+        except Exception as e:
+            print(f"Error in tokenizing: {url}, {e}")
         # print(f"courses freq: {token_frequencies.get('courses', 0)}")
     all_webpage_count = "all_webpage_count.txt"
     with(open(all_webpage_count, "a")) as file:
