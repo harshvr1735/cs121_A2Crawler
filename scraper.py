@@ -1,57 +1,48 @@
 import re
-from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
+from urllib.parse import urlparse, urldefrag, urljoin, urlunparse, unquote
 from bs4 import BeautifulSoup
 from utils import get_logger
-import urllib
-import time
-# import urllib.robotparser         not needed, for extra credit ?
+import nltk
+nltk.download('punkt')
+nltk.download('punkt_tab')
+import shelve
+import csv
+from nltk.tokenize import word_tokenize
 
+token_shelve = "token_shelve"
 logger = get_logger("SCRAPER")
-visited_base_url = set()
-# visited_depth = {}
-# visited_urls = {}
-
-all_webpage_count = "all_webpage_count.txt"
-all_webpage_count_no_stopwords = "all_webpage_count_no_stopwords.txt"
-stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"]
 traps = ["archive.ics.uci.edu","Nanda", "grape.ics.uci.edu/wiki/public/timeline?","version=","action=login","action=download","github.com","ics.uci.edu/events", "isg.ics.uci.edu/events/tag/talks/day", "share=facebook", "share=twitter", ".pdf", ".ps"]
-## wics.ics.uci.edu/events counts as a trap possibly? should blacklist it
-## wiki.ics.uci.edu has a lot of pages where theyre just wiki revisions, but its possible to escape them ics.uci.edu/events
-
-#TODO: break everything into different helper functions, 
-# a tokenizer, make a file that collects most words, a file that contains the longest text webpage, etc 
-# list of links from a subdomain and all the subdomains
 
 def scraper(url, resp):
     links = []
 
-    # if url in visited_base_url:
-    #     logger.info(f"Already visited: {url}")
-    #     return []
-
     try:
         visited_urls = set()
-        base_url, frag = urldefrag(url)
+        decoded_url = url.replace("%7E", "~") ## converts %7E to ~ 
+        base_url, frag = urldefrag(decoded_url)
 
         try:
             with open("all_webpage_count.txt", "r") as file:
-                visited_urls = {line.split(',')[0].strip() for line in file}
+                for line in file:
+                    v_url = line.split(',')[0].strip()
+                    visited_urls.add(v_url.replace("%7E", "~"))
+                # visited_urls = {line.split(',')[0].strip() for line in file}
 
         except Exception as e:
             logger.info(f"{e}: {url}")
 
-        # print(visited_urls)
-        # print(base_url)
         if base_url in visited_urls:
-            logger.info("Already visited: {url}")
+            logger.info(f"Already visited: {url}")
             return []
+        # else:
+            
 
     except Exception as e:
         logger.error(f"Error checking visited URLs: {e}")
         return []
 
 
-    visited_base_url.add(url)
+    # visited_urls.add(url)
     if "ssh://git@github.com" in url:
         return []
 ## was previously a checker for depth of a subdomain, removed as i think were supposed to crawl those pages anyways
@@ -73,12 +64,6 @@ def scraper(url, resp):
             if not content.strip():
                 logger.info(f"No content: {url}")
                 return []
-
-            # docu = urllib.urlopen(url) <----- does not allow use of .request, and thats the module that urlopen is in
-            # doc_bytes = d.info()['Content-Length']
-            # if doc_bytes / 1000000 > 30: ## as said 30MB is the max that google will scrape and files over that size will be ignored
-            #     logger.info(f"Too big of a file: {url}")
-            #     return []
             
             content_soup = BeautifulSoup(content, 'html.parser')
 
@@ -88,23 +73,6 @@ def scraper(url, resp):
                 logger.info(f"Not enough text content: {url}")
                 return []
             tokenizer(url, doc_words)
-
-## Finds ratio of HTML to document text, 
-## works as wanted, but removed as it filters out starting webpages (stats.uci.edu, ics.uci.edu, etc)
-## Could try decreasing threshold?
-            # text_len = 0
-            # for word in doc_words:
-            #     text_len += len(word)
-            # doc_len = len(str(content_soup))
-
-            # if (doc_len > 0):
-            #     ratio = text_len / doc_len
-            # else:
-            #     ratio = 0
-
-            # if ratio < 0.1:
-            #     print("TOO MUCH HTML")
-            #     return []
 
 ### Scraper does not scrape if page contains no-follow meta tags
             robot = content_soup.find('meta', attrs={'name': 'robots'})
@@ -127,10 +95,11 @@ def scraper(url, resp):
 
                 normal_path = '/'.join(path_segments)
                 c_url = urlunparse(parsed_url._replace(path=normal_path))
-                
+                decoded_url = c_url.replace("%7E", "~")
+
+                clean_url, frag = urldefrag(decoded_url) ## Removes fragments (from canvas)
                 logger.info(f"FULL URL: {c_url}")
-                clean_url, frag = urldefrag(c_url) ## Removes fragments (from canvas)
-                
+
                 links.append(clean_url)
 
         except Exception as e:
@@ -145,38 +114,45 @@ def scraper(url, resp):
     # return [link for link in links if is_valid(link)]
 
 def tokenizer(url, doc_words):
-    token_frequencies = {}
-    token_frequencies_no_stop_words = {}
+    stopwords_set = set(["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"])
+    # token_frequencies = {}
+    # token_frequencies_no_stop_words = {}
 
     url_words = 0
     url_words_no_stop_words = 0
-    # token = ""
+    
+    with shelve.open("token_shelve", writeback=True) as ts:
+        token_frequencies = ts.get("token_frequencies", {})
+        token_frequencies_no_stop_words = ts.get("token_frequencies_no_stop_words", {})
 
-    for word in doc_words:
-        # for char in word:
-        #     pass 
-        #     #TODO: COMPLETE TOKENIZER IMPLEMENTATION
-        #     ## does this count can't as can't or can t theyre so vague on ed
+        for token in doc_words:
+            token = token.lower()
+            url_words += 1
 
-        url_words += 1
-        if word not in stopwords:
-            url_words_no_stop_words += 1
-        if word not in token_frequencies:
-            if word in stopwords:
-                token_frequencies_no_stop_words[word] = 1
-            token_frequencies[word] = 1
-        else:
-            if word in stopwords:
-                token_frequencies_no_stop_words[word] += 1
-            token_frequencies[word] += 1
+            token_frequencies[token] = token_frequencies.get(token, 0) + 1
+            # if token not in token_frequencies: 
+            #     token_frequencies[token] = 1
+            # else:
+            #     token_frequencies[token] += 1
 
-    # token_frequencies = dict(sorted(token_frequencies.items(), key=lambda item: item[1]))
-    # token_frequencies_no_stop_words = dict(sorted(token_frequencies_no_stop_words.items(), key=lambda item: item[1]))
+            if token not in stopwords_set:
+                url_words_no_stop_words += 1
+                token_frequencies_no_stop_words[token] = token_frequencies_no_stop_words.get(token, 0) + 1
 
+            #     if token not in token_frequencies_no_stop_words: 
+            #         token_frequencies_no_stop_words[token] = 1
+            #     else:
+            #         token_frequencies_no_stop_words[token] += 1
+
+        ts["token_frequencies"] = token_frequencies
+        ts["token_frequencies_no_stop_words"] = token_frequencies_no_stop_words
+        # print(f"courses freq: {token_frequencies.get('courses', 0)}")
+    all_webpage_count = "all_webpage_count.txt"
     with(open(all_webpage_count, "a")) as file:
         text_to_write = f"{url},{url_words}\n"        
         file.write(text_to_write)
 
+    all_webpage_count_no_stopwords = "all_webpage_count_no_stopwords.txt"
     with(open(all_webpage_count_no_stopwords, "a")) as file:
         text_to_write = f"{url},{url_words_no_stop_words}\n"
         file.write(text_to_write)
