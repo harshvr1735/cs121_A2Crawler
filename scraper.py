@@ -47,7 +47,7 @@ def scraper(url, resp):
             return []
 
     except Exception as e:
-        logger.error(f"{e}: {url}")
+        logger.error(f"Error checking visited URLs: {e}")
         return []
 
 
@@ -208,7 +208,7 @@ def is_valid(url):
             logger.info(f"No hostname: {url}")
             return False
 
-## Domain needs to be one of these, allows subdomains 
+## Domain needs to be one of these, allows subdomains
         if not re.match(r"(.*\.)?(ics|cs|informatics|stat)\.uci\.edu", parsed.hostname): ## domain needs to be one of these, allows subdomains
             logger.info(f"Not in wanted domain: {url} {parsed.hostname}")
             return False
@@ -228,7 +228,7 @@ def is_valid(url):
 
 ## Returns the URL if it doesn't end with any of these extension tags
         return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico|img|sql|ipynb|war|bam"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|img|sql|ipynb|war|bam|mpg"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
