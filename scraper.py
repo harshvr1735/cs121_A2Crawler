@@ -3,15 +3,15 @@ from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
 import nltk
-## need to force the downlaods punkt and something ?
 from nltk.tokenize import word_tokenize
+import shelve
 import csv
 import json
 import os
 
 token_shelve = "token_shelve"
 logger = get_logger("SCRAPER")
-traps = ["archive.ics.uci.edu", "Nanda", "timeline?", "version=", "action=login", "action=download", "ics.uci.edu/events", "isg.ics.uci.edu/events/tag/talks/day", "share=facebook", "share=twitter", ".pdf", ".ps"]
+traps = ["/pdf/","archive.ics.uci.edu", "Nanda", "timeline?", "version=", "action=login", "action=download", "ics.uci.edu/events", "isg.ics.uci.edu/events/tag/talks/day", "share=facebook", "share=twitter", ".pdf", ".ps"]
 
 
 def scraper(url, resp):
@@ -229,9 +229,10 @@ def tokenizer(url, soup):
     url_words = 0
     url_words_no_stop_words = 0
     
-    for line in doc_words:
-        tokenized_line = word_tokenize(line)
-        for token in tokenized_line:
+    for token in doc_words:
+        ## word_tokenize includes special characters and punctuation arghehghehgg maybe just just doc_words iterating through
+        # tokenized_line = word_tokenize(line)
+        # for token in tokenized_line:
             token = token.lower()
             url_words += 1
             if token not in token_frequencies: 
