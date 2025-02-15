@@ -3,8 +3,6 @@ import shelve
 from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
-import nltk
-from nltk.tokenize import word_tokenize
 
 # import urllib.robotparser         not needed, for extra credit ?
 
