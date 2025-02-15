@@ -8,6 +8,7 @@ import shelve
 import csv
 import json
 import os
+nltk.download("punkt")
 
 token_shelve = "token_shelve"
 logger = get_logger("SCRAPER")
