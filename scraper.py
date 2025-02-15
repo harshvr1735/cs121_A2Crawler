@@ -47,9 +47,11 @@ def extract_next_links(url, resp):
         try:
             # parsing html content
             soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
-
+            doc_words = (soup.get_text(separator=" ")).split()
+            
             if not has_sufficient_content(soup):
                 return links
+            # TODO: ADD TOKENIZER AMENDS HERE
 
             if has_nofollow_meta(soup):
                 return links
@@ -79,11 +81,10 @@ def is_valid_response(resp) -> int:
     return 4
 
 
-def has_sufficient_content(soup):
+def has_sufficient_content(soup, doc_words):
     """
     Ensures the page has enough textual content to be worth crawling.
     """
-    doc_words = (soup.get_text(separator=" ")).split()
     if len(doc_words) < 100:
         return False
     return True
