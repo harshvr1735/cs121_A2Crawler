@@ -1,4 +1,5 @@
 import re
+import shelve
 from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
@@ -169,29 +170,33 @@ def is_valid(url):
 
 
 def tokenizer(url, doc_words):
-
     stopwords_set = set(["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"])
-    token_frequencies = {}
-    token_frequencies_no_stop_words = {}
 
     url_words = 0
     url_words_no_stop_words = 0
     
-    for line in doc_words:
-        tokenized_line = word_tokenize(line)
-        for token in tokenized_line:
-            url_words += 1
-            if token not in token_frequencies: 
-                token_frequencies[token] = 1
-            else:
-                token_frequencies[token] += 1
-            if token not in stopwords_set:
-                url_words_no_stop_words += 1
-                if token not in token_frequencies_no_stop_words: 
-                    token_frequencies_no_stop_words[token] = 1
-                else:
-                    token_frequencies_no_stop_words[token] += 1
+    with shelve.open("token_shelve", writeback=False) as ts:
+        try:
+            token_frequencies = ts.get("token_frequencies", {})
+            token_frequencies_no_stop_words = ts.get("token_frequencies_no_stop_words", {})
 
+            for token in doc_words:
+                token = token.lower()
+                url_words += 1
+
+                token_frequencies[token] = token_frequencies.get(token, 0) + 1
+
+                if token not in stopwords_set:
+                    url_words_no_stop_words += 1
+                    token_frequencies_no_stop_words[token] = token_frequencies_no_stop_words.get(token, 0) + 1
+
+            ts["token_frequencies"] = token_frequencies
+            ts["token_frequencies_no_stop_words"] = token_frequencies_no_stop_words
+        except KeyboardInterrupt:
+            print(f"Shuting down program through KeyboardInterrupt: {url}, {e}")
+        except Exception as e:
+            print(f"Error in tokenizing: {url}, {e}")
+        # print(f"courses freq: {token_frequencies.get('courses', 0)}")
     all_webpage_count = "all_webpage_count.txt"
     with(open(all_webpage_count, "a")) as file:
         text_to_write = f"{url},{url_words}\n"        
@@ -201,3 +206,5 @@ def tokenizer(url, doc_words):
     with(open(all_webpage_count_no_stopwords, "a")) as file:
         text_to_write = f"{url},{url_words_no_stop_words}\n"
         file.write(text_to_write)
+    ## probably append to a file to keep track and then convert to a csv for our reports? 
+    ## and then sort it there bc thats easy implementation
