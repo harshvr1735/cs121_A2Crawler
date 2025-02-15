@@ -49,9 +49,9 @@ def extract_next_links(url, resp):
             soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
             doc_words = (soup.get_text(separator=" ")).split()
             
-            if not has_sufficient_content(soup):
+            if not has_sufficient_content(soup, doc_words):
                 return links
-            # TODO: ADD TOKENIZER AMENDS HERE
+            tokenizer(url, doc_words)
 
             if has_nofollow_meta(soup):
                 return links
