@@ -1,19 +1,14 @@
 import re
-import shelve
 from urllib.parse import urlparse, urldefrag, urljoin, urlunparse
 from bs4 import BeautifulSoup
 from utils import get_logger
+import json
+import os
 
-# import urllib.robotparser         not needed, for extra credit ?
 
+token_shelve = "token_shelve"
 logger = get_logger("SCRAPER")
-visited_base_url = set()
-# visited_depth = {}
-visited_urls = {}
-
-
-## wics.ics.uci.edu/events counts as a trap possibly? should blacklist it
-## wiki.ics.uci.edu has a lot of pages where theyre just wiki revisions, but its possible to escape them
+traps = ["/pdf/", "archive.ics.uci.edu", "Nanda", "timeline?", "version=", "action=login", "action=download", "ics.uci.edu/events", "isg.ics.uci.edu/events/tag/talks/day", "share=facebook", "share=twitter", ".pdf", ".ps"]
 
 
 def scraper(url, resp):
@@ -33,6 +28,10 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     links = []
 
+    already_visited = check_if_visited_page(url)
+    if already_visited:
+        return links
+
     num = is_valid_response(resp)
 
     if num == 4:
@@ -45,22 +44,57 @@ def extract_next_links(url, resp):
         try:
             # parsing html content
             soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
-            doc_words = (soup.get_text(separator=" ")).split()
             
-            if not has_sufficient_content(soup, doc_words):
+            if not has_sufficient_content(soup):
                 return links
-            tokenizer(url, doc_words)
 
             if has_nofollow_meta(soup):
                 return links
 
             links = extract_hyperlinks(url, soup)
+            tokenizer(url, soup)
 
         except Exception as e:
             print(f"Error parsing {url}: {e}")
 
     links = list(set(links))  # removes duplicates
     return links
+
+
+def check_if_visited_page(url) -> bool:
+    """
+    Checks if the page has already been visited.
+    returns an bool value based on status.
+    """
+    try:
+
+        if not os.path.exists("all_webpage_count.txt"):
+            open("all_webpage_count.txt", "w").close()
+            open("all_webpage_count_no_stopwords.txt", "w").close()
+
+        visited_urls = set()
+        decoded_url = url.replace("%7E", "~") ## converts %7E to ~
+        base_url, frag = urldefrag(decoded_url)
+        base_url = base_url.replace("/www.", "/")
+
+        try:
+            with open("all_webpage_count.txt", "r") as file:
+                for line in file:
+                    v_url = line.split(',')[0].strip()
+                    visited_urls.add(v_url.replace("%7E", "~"))
+
+        except Exception as e:
+            logger.info(f"{e}: {url}")
+
+        if base_url in visited_urls:
+            logger.info(f"Already visited: {url}")
+            return True
+
+    except Exception as e:
+        logger.error(f"Error checking visited URLs: {e}")
+        return True
+
+    return False
 
 
 def is_valid_response(resp) -> int:
@@ -79,10 +113,11 @@ def is_valid_response(resp) -> int:
     return 4
 
 
-def has_sufficient_content(soup, doc_words):
+def has_sufficient_content(soup):
     """
     Ensures the page has enough textual content to be worth crawling.
     """
+    doc_words = (soup.get_text(separator=" ")).split()
     if len(doc_words) < 100:
         return False
     return True
@@ -108,11 +143,17 @@ def extract_hyperlinks(url, soup):
     for link in soup.find_all('a', href=True):
         raw_link = link['href']  # extracts the link "https://www.ics.uci.edu/contact-us", "about-us"
         complete_url = urljoin(url, raw_link)  # joins it to the base url - "https://www.ics.uci.edu/about-us"
-        clean_url, _ = urldefrag(complete_url)  # Remove fragments
+        decoded_url = url_decoder(complete_url)  # Converts %7E to ~ in urls so that urls that are encoded do not get duplicated
+        clean_url, _ = urldefrag(decoded_url)  # Remove fragments
         normal_url = normalize_url(clean_url)
         if normal_url:
             links.append(normal_url)
     return links
+
+
+def url_decoder(complete_url):
+    decoded_url = complete_url.replace("%7E", "~")
+    return decoded_url
 
 
 def normalize_url(url):
@@ -120,13 +161,18 @@ def normalize_url(url):
     Normalizes URLs to remove redundant parts
     """
     parsed_url = urlparse(url)
+
+    hostname = parsed_url.hostname
+    if hostname and hostname.startswith("www."):
+        hostname = hostname[4:]
+
     path_segments = []
     for seg in parsed_url.path.split('/'):
         if seg and (not path_segments or seg != path_segments[-1]):
             path_segments.append(seg)
 
     normal_path = '/'.join(path_segments)
-    return urlunparse(parsed_url._replace(path=normal_path))
+    return urlunparse(parsed_url._replace(netloc=hostname, path=normal_path))
 
 
 def is_valid(url):
@@ -135,11 +181,15 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in {"http", "https"}:
+            return False
+
+        # Ensures that there is a hostname before examining the URL
+        if not parsed.hostname:
             return False
 
         # Domain needs to be one of these, allows subdomains
-        if not re.match(r".*(\.ics\.uci\.edu|\.cs\.uci\.edu|\.informatics\.uci\.edu|\.stat\.uci\.edu)$",
+        if not re.match(r"(.*\.)?(ics|cs|informatics|stat)\.uci\.edu",
                         parsed.hostname):  # domain needs to be one of these, allows subdomains
             return False
 
@@ -153,9 +203,14 @@ def is_valid(url):
                ["ical=", "outlook-ical=", "tribe-bar-date=", "eventdate=", "calendar-view", "date="]):
             return False
 
+        # Ensures that the crawler avoids potential traps
+        for t in traps:
+            if t in parsed.geturl():
+                return False
+
         # Returns the URL if it doesn't end with any of these extension tags
         return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico|img"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|img|sql|ipynb|war|bam|mpg|ppsx"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
@@ -168,42 +223,81 @@ def is_valid(url):
         raise
 
 
-def tokenizer(url, doc_words):
-    stopwords_set = set(["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"])
+def tokenizer(url, soup):
+    doc_words = (soup.get_text(separator=" ")).split()
+    stopwords_set = {"a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
+                     "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both",
+                     "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't",
+                     "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't",
+                     "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here",
+                     "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
+                     "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more",
+                     "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or",
+                     "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
+                     "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's",
+                     "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they",
+                     "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under",
+                     "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't",
+                     "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom",
+                     "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've",
+                     "your", "yours", "yourself", "yourselves"}
+    token_frequencies = {}
+    token_frequencies_no_stop_words = {}
 
     url_words = 0
     url_words_no_stop_words = 0
-    
-    with shelve.open("token_shelve", writeback=False) as ts:
-        try:
-            token_frequencies = ts.get("token_frequencies", {})
-            token_frequencies_no_stop_words = ts.get("token_frequencies_no_stop_words", {})
 
-            for token in doc_words:
-                token = token.lower()
-                url_words += 1
+    for token in doc_words:
+        token = token.lower()
+        url_words += 1
+        if token not in token_frequencies:
+            token_frequencies[token] = 1
+        else:
+            token_frequencies[token] += 1
+        if token not in stopwords_set:
+            url_words_no_stop_words += 1
+            if token not in token_frequencies_no_stop_words:
+                token_frequencies_no_stop_words[token] = 1
+            else:
+                token_frequencies_no_stop_words[token] += 1
+    try:
+        token_frequencies_json = "token_frequencies.json"
+        token_frequencies_nostop_json = "token_frequencies_nostop.json"
+        with open(token_frequencies_json, "r") as f:
+            old_frequencies = json.load(f)
 
-                token_frequencies[token] = token_frequencies.get(token, 0) + 1
+        with open(token_frequencies_nostop_json, "r") as f:
+            old_frequencies_nostop = json.load(f)
 
-                if token not in stopwords_set:
-                    url_words_no_stop_words += 1
-                    token_frequencies_no_stop_words[token] = token_frequencies_no_stop_words.get(token, 0) + 1
+    except FileNotFoundError:
+        old_frequencies = {}
+        old_frequencies_nostop = {}
 
-            ts["token_frequencies"] = token_frequencies
-            ts["token_frequencies_no_stop_words"] = token_frequencies_no_stop_words
-        except KeyboardInterrupt:
-            print(f"Shuting down program through KeyboardInterrupt: {url}, {e}")
-        except Exception as e:
-            print(f"Error in tokenizing: {url}, {e}")
-        # print(f"courses freq: {token_frequencies.get('courses', 0)}")
+    for token, count in token_frequencies.items():
+        if token in old_frequencies:
+            old_frequencies[token] += count
+        else:
+            old_frequencies[token] = count
+
+    for token, count in token_frequencies_no_stop_words.items():
+        if token in old_frequencies_nostop:
+            old_frequencies_nostop[token] += count
+        else:
+            old_frequencies_nostop[token] = count
+
+    with open(token_frequencies_json, "w") as f:
+        json.dump(old_frequencies, f)
+
+    with open(token_frequencies_nostop_json, "w") as f:
+        json.dump(old_frequencies_nostop, f)
+
     all_webpage_count = "all_webpage_count.txt"
-    with(open(all_webpage_count, "a")) as file:
-        text_to_write = f"{url},{url_words}\n"        
+    with open(all_webpage_count, "a") as file:
+        text_to_write = f"{url},{url_words}\n"
         file.write(text_to_write)
 
     all_webpage_count_no_stopwords = "all_webpage_count_no_stopwords.txt"
-    with(open(all_webpage_count_no_stopwords, "a")) as file:
+
+    with open(all_webpage_count_no_stopwords, "a") as file:
         text_to_write = f"{url},{url_words_no_stop_words}\n"
         file.write(text_to_write)
-    ## probably append to a file to keep track and then convert to a csv for our reports? 
-    ## and then sort it there bc thats easy implementation
