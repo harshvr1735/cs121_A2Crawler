@@ -1,0 +1,107 @@
+Number of Unique Pages: 19070 
+Longest Page: ics.uci.edu/~kay/wordlist.txt, 385018 words
+Top 50 Most Common Words: research, student, computer, science, graduate, us, undergraduate, learning, data, news, students, faculty, software, information, uci, machine, school, future, october, will, programs, statistics, projects, can, computing, bren, may, systems, donald, academic, people, one, policy, health, community, contact, phd, make, new, home, september, community, impact, opportunities, june, sciences, july, department, design, resources
+Number of ICS Subdomains: 98
+accessibility.ics.uci.edu : 5
+acoi.ics.uci.edu : 107
+aiclub.ics.uci.edu : 2
+asterix.ics.uci.edu : 6
+betapro.proteomics.ics.uci.edu : 3
+cbcl.ics.uci.edu : 11
+cdb.ics.uci.edu : 26
+cert.ics.uci.edu : 18
+chenli.ics.uci.edu : 10
+chemdb.ics.uci.edu : 25
+circadiomics.ics.uci.edu : 5
+cml.ics.uci.edu : 253
+cloudberry.ics.uci.edu : 28
+code.ics.uci.edu : 14
+computableplant.ics.uci.edu : 41
+courselisting.ics.uci.edu : 4
+cradl.ics.uci.edu : 17
+create.ics.uci.edu : 4
+cs.ics.uci.edu : 11
+cwicsocal18.ics.uci.edu : 6
+cybert.ics.uci.edu : 26
+cyberclub.ics.uci.edu : 2
+datalab.ics.uci.edu : 1
+dejavu.ics.uci.edu : 1
+dgillen.ics.uci.edu : 30
+ds4all.ics.uci.edu : 3
+duttgroup.ics.uci.edu : 114
+dynamo.ics.uci.edu : 5
+edgelab.ics.uci.edu : 4
+eli.ics.uci.edu : 3
+emj.ics.uci.edu : 41
+esl.ics.uci.edu : 5
+flamingo.ics.uci.edu : 11
+fr.ics.uci.edu : 2
+frost.ics.uci.edu : 2
+futurehealth.ics.uci.edu : 85
+grape.ics.uci.edu : 537
+graphics.ics.uci.edu : 5
+graphmod.ics.uci.edu : 1
+hai.ics.uci.edu : 6
+hobbes.ics.uci.edu : 10
+hpi.ics.uci.edu : 5
+iasl.ics.uci.edu : 18
+icde2023.ics.uci.edu : 46
+ics.uci.edu : 6622
+ieee.ics.uci.edu : 4
+industryshowcase.ics.uci.edu : 24
+informatics.ics.uci.edu : 2
+insite.ics.uci.edu : 7
+ipubmed.ics.uci.edu : 1
+isg.ics.uci.edu : 217
+jgarcia.ics.uci.edu : 23
+luci.ics.uci.edu : 3
+mailman.ics.uci.edu : 30
+malek.ics.uci.edu : 1
+mdogucu.ics.uci.edu : 3
+mds.ics.uci.edu : 24
+mhcid.ics.uci.edu : 21
+mlphysics.ics.uci.edu : 1
+mondego.ics.uci.edu : 3
+motifmap.ics.uci.edu : 2
+motifmap-ra.ics.uci.edu : 2
+mover.ics.uci.edu : 22
+mupro.proteomics.ics.uci.edu : 3
+nalini.ics.uci.edu : 3
+ngs.ics.uci.edu : 2016
+oai.ics.uci.edu : 6
+pastebin.ics.uci.edu : 1
+plrg.ics.uci.edu : 16
+psearch.ics.uci.edu : 1
+radicle.ics.uci.edu : 4
+redmiles.ics.uci.edu : 1
+riscit.ics.uci.edu : 1
+scratch.proteomics.ics.uci.edu : 4
+sdcl.ics.uci.edu : 204
+seal.ics.uci.edu : 41
+selectpro.proteomics.ics.uci.edu : 6
+sherlock.ics.uci.edu : 4
+sli.ics.uci.edu : 82
+sourcerer.ics.uci.edu : 1
+speedtest.ics.uci.edu : 1
+stairs.ics.uci.edu : 3
+statconsulting.ics.uci.edu : 4
+studentcouncil.ics.uci.edu : 10
+summeracademy.ics.uci.edu : 1
+swiki.ics.uci.edu : 22
+tad.ics.uci.edu : 2
+transformativeplay.ics.uci.edu : 49
+tastier.ics.uci.edu : 1
+tutorting.ics.uci.edu : 5
+tutors.ics.uci.edu : 1
+unite.ics.uci.edu : 9
+vision.ics.uci.edu : 187
+wearablegames.ics.uci.edu : 9
+wics.ics.uci.edu : 1011
+wiki.ics.uci.edu : 21
+www-db.ics.uci.edu : 12
+xtune.ics.uci.edu : 2
+
+
+
+
+
